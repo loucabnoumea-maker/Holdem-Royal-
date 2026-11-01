@@ -1,0 +1,8 @@
+# Configuration minimale pour `supabase functions deploy` / `supabase start`.
+project_id = "holdem-royal"
+
+[auth]
+enable_anonymous_sign_ins = true
+
+[functions.poker]
+verify_jwt = true

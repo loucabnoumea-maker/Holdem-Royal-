@@ -1,0 +1,40 @@
+{
+  "name": "poker-holdem",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx scripts/demo.ts",
+    "sync:engine": "node scripts/sync-engine.mjs",
+    "deploy:functions": "npm run sync:engine && supabase functions deploy poker",
+    "build:single": "tsc -b && vite build --mode single",
+    "bench": "tsx scripts/bot-bench.ts",
+    "bundle:function": "npm run sync:engine && esbuild supabase/functions/poker/index.ts --bundle --format=esm --platform=neutral --target=es2022 --external:npm:* --banner:js='// @ts-nocheck' --outfile=deploy/poker-function.ts"
+  },
+  "dependencies": {
+    "@letele/playing-cards": "^0.1.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.88.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^5.0.5"
+  }
+}
