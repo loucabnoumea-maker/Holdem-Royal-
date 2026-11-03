@@ -9,6 +9,10 @@ import {
   DEALER_COLS,
   dealerShouldHit,
   DEFAULT_RULES,
+  evalPairs,
+  evalPlus3,
+  PAIRS_TABLE,
+  PLUS3_TABLE,
   HARD_CHART,
   handTotal,
   isBlackjack,
@@ -28,6 +32,7 @@ export const BLACKJACK_TOC = [
   ['actions', 'Tes options'],
   ['croupier', 'Les règles du croupier'],
   ['paiements', 'Les paiements'],
+  ['paris-annexes', 'Les paris annexes'],
   ['calculateur', 'Calculateur de main'],
   ['strategie', 'La stratégie de base'],
   ['lexique', 'Lexique'],
@@ -162,6 +167,30 @@ export function BlackjackRules() {
           </table>
         </div>
         <Note kind="tip">Un 21 fait avec 3 cartes ou après une séparation n'est pas un blackjack : il est payé 1 pour 1.</Note>
+      </Section>
+
+      <Section
+        id="paris-annexes"
+        title="Les paris annexes"
+        lead="Deux paris facultatifs, posés avant la distribution dans les petites cases à gauche et à droite de ta mise. Ils se jouent uniquement sur les premières cartes, indépendamment du résultat de ta main."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PayTable
+            title="Perfect Pairs"
+            sub="Tes 2 premières cartes forment-elles une paire ?"
+            rows={PAIRS_TABLE.map((r) => [r.name, r.desc, r.mult, r.example])}
+          />
+          <PayTable
+            title="21+3"
+            sub="Tes 2 cartes + la carte visible du croupier forment une main de poker à 3 cartes."
+            rows={PLUS3_TABLE.map((r) => [r.name, r.desc, r.mult, r.example])}
+          />
+        </div>
+        <SideBetSimulator />
+        <Note kind="warn" title="À savoir">
+          Ces paris paient gros mais tombent rarement : le casino y garde un avantage d'environ 3 à 6 %, bien plus que sur la main principale (0,5 % avec la
+          stratégie de base). Joue-les petit, pour le fun. Pour 21+3, l'As compte en haut (D-R-A) et en bas (A-2-3).
+        </Note>
       </Section>
 
       <Section id="calculateur" title="Calculateur de main" lead="Compose une main et choisis la carte du croupier : le total et le meilleur coup s'affichent en direct.">
@@ -494,5 +523,110 @@ function StrategyCharts() {
         ))}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- Paris annexes
+
+function PayTable({ title, sub, rows }: { title: string; sub: string; rows: [string, string, number, string][] }) {
+  return (
+    <div className="panel rounded-2xl p-4 sm:p-5">
+      <div className="font-display text-2xl font-bold text-brass-200">{title}</div>
+      <p className="mt-1 text-[15px] text-ivory/65">{sub}</p>
+      <div className="mt-3 flex flex-col divide-y divide-white/10">
+        {rows.map(([name, desc, mult, ex]) => (
+          <div key={name} className="flex items-center gap-3 py-2.5">
+            <div className="shrink-0">
+              <Cards cards={ex} size={9} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-ui font-bold text-ivory">{name}</div>
+              <div className="text-sm text-ivory/60">{desc}</div>
+            </div>
+            <div className="font-ui shrink-0 rounded-lg bg-black/40 px-2.5 py-1 text-lg font-extrabold tabular-nums text-brass-200">{mult}:1</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function randomCard(): Card {
+  return SAMPLE_DECK[Math.floor(Math.random() * SAMPLE_DECK.length)];
+}
+
+function SideBetSimulator() {
+  const [n, setN] = useState(0);
+  const [cards, setCards] = useState<Card[]>(() => [randomCard(), randomCard(), randomCard()]);
+  const [tally, setTally] = useState({ draws: 0, pairs: 0, plus3: 0 });
+  const pairs = evalPairs(cards[0], cards[1]);
+  const plus3 = evalPlus3(cards);
+  const drawOnce = (force?: 'pairs' | 'plus3') => {
+    let c: Card[];
+    let tries = 0;
+    do {
+      c = [randomCard(), randomCard(), randomCard()];
+      tries++;
+    } while (force && tries < 5000 && !(force === 'pairs' ? evalPairs(c[0], c[1]) : evalPlus3(c)));
+    setCards(c);
+    setN((x) => x + 1);
+    if (!force) setTally((t) => ({ draws: t.draws + 1, pairs: t.pairs + (evalPairs(c[0], c[1]) ? 1 : 0), plus3: t.plus3 + (evalPlus3(c) ? 1 : 0) }));
+  };
+  const badge = (r: { name: string; mult: number } | null) =>
+    r ? (
+      <span className="pop-in font-ui rounded-full bg-[#0e3a28] px-3 py-1 font-bold text-[#bdf0d2] ring-1 ring-[#2c8a5d]/60">
+        {r.name} · {r.mult}:1
+      </span>
+    ) : (
+      <span className="font-ui rounded-full bg-black/40 px-3 py-1 text-ivory/50">Perdu</span>
+    );
+  return (
+    <DemoFrame label="Simulateur de paris annexes">
+      <div className="grid items-center gap-6 md:grid-cols-[auto_minmax(0,1fr)]">
+        <div className="flex items-end gap-6" key={n}>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex" style={{ fontSize: 18 }}>
+              {cards.slice(0, 2).map((c, i) => (
+                <div key={i} style={{ marginLeft: i ? '-0.9em' : 0 }}>
+                  <PlayingCard card={c} size={18} dealDelay={i * 180} />
+                </div>
+              ))}
+            </div>
+            <span className="font-ui text-sm text-ivory/55">Tes 2 cartes</span>
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <PlayingCard card={cards[2]} size={18} dealDelay={360} />
+            <span className="font-ui text-sm text-ivory/55">Croupier</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-ui w-28 font-bold text-ivory">Perfect Pairs</span>
+            {badge(pairs)}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-ui w-28 font-bold text-ivory">21+3</span>
+            {badge(plus3)}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => drawOnce()} className="btn-lacquer btn-brass px-5 py-2.5 text-base">
+              Distribuer
+            </button>
+            <button onClick={() => drawOnce('pairs')} className="font-ui rounded-full bg-black/30 px-4 py-2 text-[15px] font-semibold text-ivory/85 ring-1 ring-white/15">
+              Montre une paire
+            </button>
+            <button onClick={() => drawOnce('plus3')} className="font-ui rounded-full bg-black/30 px-4 py-2 text-[15px] font-semibold text-ivory/85 ring-1 ring-white/15">
+              Montre un 21+3
+            </button>
+          </div>
+          {tally.draws > 0 && (
+            <p className="font-ui text-sm text-ivory/60">
+              Sur tes {tally.draws} distributions : {tally.pairs} paire{tally.pairs > 1 ? 's' : ''} ({Math.round((tally.pairs / tally.draws) * 100)} %), {tally.plus3} 21+3 (
+              {Math.round((tally.plus3 / tally.draws) * 100)} %). En moyenne : une paire 1 fois sur 13, un 21+3 environ 1 fois sur 10.
+            </p>
+          )}
+        </div>
+      </div>
+    </DemoFrame>
   );
 }

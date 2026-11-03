@@ -118,10 +118,20 @@ button:disabled {
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.25, 1.15);
 }
 .card-inner.flipped {
   transform: rotateY(180deg);
+}
+/* Petit soulèvement pendant le retournement */
+.card-inner.lift {
+  animation: card-lift 0.55s ease-out;
+}
+@keyframes card-lift {
+  50% {
+    filter: drop-shadow(0 0.6em 0.5em rgba(0, 0, 0, 0.45));
+    scale: 1.07;
+  }
 }
 .card-face {
   position: absolute;
@@ -143,6 +153,9 @@ button:disabled {
 }
 .card-back {
   transform: rotateY(180deg);
+}
+.card-back,
+.card-back-art {
   background-color: #6e1621;
   background-image:
     radial-gradient(circle at 50% 50%, rgba(241, 223, 174, 0.9) 0 0.18em, transparent 0.2em),
@@ -157,17 +170,24 @@ button:disabled {
 }
 
 @keyframes deal-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translate(var(--from-x, 0), var(--from-y, -70px)) scale(0.55) rotate(-18deg);
+    transform: translate(var(--from-x, 0px), var(--from-y, -70px)) rotate(var(--from-rot, -32deg)) scale(0.62);
   }
-  to {
+  12% {
+    opacity: 1;
+  }
+  72% {
+    transform: translate(0, -0.12em) rotate(1.5deg) scale(1.04);
+    filter: drop-shadow(0 0.5em 0.45em rgba(0, 0, 0, 0.4));
+  }
+  100% {
     opacity: 1;
     transform: none;
   }
 }
 .deal-in {
-  animation: deal-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: deal-in 0.52s cubic-bezier(0.22, 0.75, 0.25, 1) both;
 }
 
 @keyframes pop-in {
@@ -325,5 +345,127 @@ input[type="range"].raise-slider::-moz-range-thumb {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Animations de jeu ---------- */
+
+/* Jeton qui vole d'un point à un autre (mise, paiement, ramassage) */
+@keyframes chip-fly {
+  0% {
+    transform: translate(var(--dx), var(--dy)) scale(var(--s0, 1));
+    opacity: var(--o0, 1);
+  }
+  55% {
+    transform: translate(calc(var(--dx) * 0.4), calc(var(--dy) * 0.4 - 30px)) scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: var(--o1, 1);
+  }
+}
+.chip-fly {
+  animation: chip-fly var(--dur, 0.55s) cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+
+/* Pile de jetons ramassée par le croupier */
+@keyframes chips-taken {
+  to {
+    transform: translateY(-38vh) scale(0.6);
+    opacity: 0;
+  }
+}
+.chips-taken {
+  animation: chips-taken 0.7s cubic-bezier(0.5, 0, 0.75, 0.4) 0.25s both;
+}
+/* Gains qui arrivent depuis le rack du croupier */
+@keyframes chips-paid {
+  from {
+    transform: translateY(-38vh) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.chips-paid {
+  animation: chips-paid 0.65s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+/* Résultat qui « tombe » sur la table */
+@keyframes stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.2) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.stamp {
+  animation: stamp 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Éclats dorés (blackjack, gros gain, pari annexe) */
+@keyframes spark {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(var(--r, -90px)) scale(0.3);
+  }
+}
+.spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fff6d8 0 30%, #e3c681 60%, transparent 70%);
+  animation: spark 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  pointer-events: none;
+}
+
+/* Main gagnante / perdante */
+.hand-won {
+  filter: drop-shadow(0 0 14px rgba(241, 223, 174, 0.55));
+}
+.hand-lost {
+  filter: brightness(0.55) saturate(0.6);
+  transition: filter 0.6s ease 0.3s;
+}
+
+/* Sabot : la carte du dessus dépasse */
+@keyframes shoe-pulse {
+  50% {
+    transform: translateX(-3px);
+  }
+}
+.shoe-deal {
+  animation: shoe-pulse 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deal-in,
+  .chip-fly,
+  .chips-taken,
+  .chips-paid,
+  .stamp,
+  .spark,
+  .card-inner.lift {
+    animation-duration: 0.01ms !important;
+  }
+  .card-inner {
+    transition-duration: 0.01ms;
   }
 }

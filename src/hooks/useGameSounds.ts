@@ -13,7 +13,11 @@ export function useGameSounds(view: GameState | null, heroId: string | null) {
     const from = newHand ? 0 : p.logLen;
     const fresh = view.log.slice(from);
 
-    if (newHand && view.phase === 'betting') play('card');
+    if (newHand && view.phase === 'betting') {
+      // Distribution : une carte par joueur, deux tours
+      const n = Math.min(18, view.players.filter((x) => x.stack > 0 || x.bet > 0).length * 2);
+      for (let i = 0; i < n; i++) setTimeout(() => play('card'), i * 95);
+    }
     let delay = 0;
     for (const e of fresh) {
       const t = delay;
@@ -22,6 +26,7 @@ export function useGameSounds(view: GameState | null, heroId: string | null) {
         switch (e.kind) {
           case 'street':
             play('card');
+            setTimeout(() => play('flip'), 260);
             break;
           case 'call':
           case 'bet':
@@ -36,7 +41,7 @@ export function useGameSounds(view: GameState | null, heroId: string | null) {
             play('fold');
             break;
           case 'win':
-            if (e.playerId === heroId) play('win');
+            play(e.playerId === heroId ? 'win' : 'chips');
             break;
           case 'eliminated':
             if (e.playerId === heroId) play('lose');

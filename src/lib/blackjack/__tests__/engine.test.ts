@@ -6,6 +6,8 @@ import {
   basicStrategy,
   createTable,
   deal,
+  evalPairs,
+  evalPlus3,
   handTotal,
   isBlackjack,
   legalActions,
@@ -183,4 +185,42 @@ describe('stratégie de base', () => {
     expect(edge).toBeGreaterThan(-0.025);
     expect(edge).toBeLessThan(0.015);
   }, 120_000);
+});
+
+describe('paris annexes', () => {
+  const pc = (s: string) => parseCards(s);
+  it('Perfect Pairs : parfaite, couleur, mixte', () => {
+    const [a, b, c, d] = pc('8h 8h 8d 8s');
+    expect(evalPairs(a, b)?.mult).toBe(25);
+    expect(evalPairs(a, c)?.mult).toBe(12);
+    expect(evalPairs(a, d)?.mult).toBe(6);
+    expect(evalPairs(a, pc('9h')[0])).toBeNull();
+  });
+  it('21+3 : toutes les combinaisons', () => {
+    expect(evalPlus3(pc('7s 7s 7s'))?.mult).toBe(100);
+    expect(evalPlus3(pc('9h Th Jh'))?.mult).toBe(40);
+    expect(evalPlus3(pc('7s 7d 7c'))?.mult).toBe(30);
+    expect(evalPlus3(pc('4c 6s 5d'))?.mult).toBe(10);
+    expect(evalPlus3(pc('Ac 2s 3d'))?.mult).toBe(10);
+    expect(evalPlus3(pc('Qc Ks Ad'))?.mult).toBe(10);
+    expect(evalPlus3(pc('Kc As 2d'))).toBeNull();
+    expect(evalPlus3(pc('2d 9d Kd'))?.mult).toBe(5);
+    expect(evalPlus3(pc('2d 9c Kd'))).toBeNull();
+  });
+  it('les gains des paris annexes entrent dans le solde et le net', () => {
+    // joueur 8h 8d, croupier 8s (visible) puis 9c ; 21+3 = brelan 8 (30:1), paires = couleur (12:1)
+    let s = createTable(1000, undefined, seededRng(1));
+    s = deal(s, 10, seededRng(1), { preset: pc('8h 8s 8d 9c'), side: { pairs: 5, plus3: 5 } });
+    expect(s.balance).toBe(980);
+    expect(s.sideResults.map((r) => r.mult)).toEqual([12, 30]);
+    s = act(s, 'stand'); // 16 contre 17 : perdu
+    expect(s.phase).toBe('settled');
+    // mise 10 perdue, paires +60, 21+3 +150
+    expect(s.lastNet).toBe(-10 + 60 + 150);
+    expect(s.balance).toBe(1000 + s.lastNet);
+  });
+  it('refuse un total de mises supérieur au solde', () => {
+    const s = createTable(20, undefined, seededRng(1));
+    expect(() => deal(s, 10, seededRng(1), { side: { pairs: 6, plus3: 5 } })).toThrow();
+  });
 });

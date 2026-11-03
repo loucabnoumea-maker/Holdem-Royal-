@@ -1,11 +1,12 @@
 // Jeton de casino cliquable (vu de dessus), pour choisir une mise.
+import type { MouseEvent } from 'react';
 import { fmt } from '../lib/prefs.ts';
 
 export const CHIP_COLORS: Record<number, { body: string; edge: string; text: string }> = {
   1: { body: '#e9e4d6', edge: '#1f4fa3', text: '#1f2a44' },
   5: { body: '#b3232f', edge: '#fbf5e6', text: '#fbf5e6' },
   10: { body: '#1f4fa3', edge: '#fbf5e6', text: '#fbf5e6' },
-  25: { body: '#17784b', edge: '#fbf5e6', text: '#fbf5e6' },
+  25: { body: '#1f8f58', edge: '#fbf5e6', text: '#fbf5e6' },
   100: { body: '#1c1c22', edge: '#e3c681', text: '#e3c681' },
   500: { body: '#5b2f87', edge: '#fbf5e6', text: '#fbf5e6' },
   1000: { body: '#d29a2b', edge: '#3a2508', text: '#2a1c06' },
@@ -18,7 +19,7 @@ export function chipColor(v: number) {
 interface Props {
   value: number;
   size?: number;
-  onClick?: () => void;
+  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   label?: string;
 }
@@ -30,6 +31,7 @@ export function BetChip({ value, size = 56, onClick, disabled, label }: Props) {
       <circle cx="50" cy="52" r="47" fill="rgba(0,0,0,.45)" />
       <circle cx="50" cy="50" r="47" fill={c.body} />
       <circle cx="50" cy="50" r="47" fill="none" stroke={c.edge} strokeWidth="10" strokeDasharray="14.76 14.76" />
+      <circle cx="50" cy="50" r="47.5" fill="none" stroke="rgba(0,0,0,.55)" strokeWidth="2.5" />
       <circle cx="50" cy="50" r="33" fill={c.body} stroke={c.edge} strokeOpacity=".7" strokeWidth="2" />
       <circle cx="50" cy="50" r="28" fill="none" stroke={c.edge} strokeOpacity=".35" strokeWidth="1" strokeDasharray="3 3" />
       <text

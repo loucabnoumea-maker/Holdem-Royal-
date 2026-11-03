@@ -68,6 +68,85 @@ export interface BJState {
   lastNet: number;
   reshuffled: boolean;
   log: string[];
+  /** Paris annexes du tour en cours. */
+  sideBets: SideBets;
+  sideResults: SideResult[];
+}
+
+// ---------------------------------------------------------------- Paris annexes (side bets)
+
+export interface SideBets {
+  /** Perfect Pairs : tes 2 premières cartes forment une paire. */
+  pairs: number;
+  /** 21+3 : tes 2 cartes + la carte visible du croupier forment une main de poker. */
+  plus3: number;
+}
+export type SideKind = keyof SideBets;
+export interface SideResult {
+  kind: SideKind;
+  bet: number;
+  /** Nom de la combinaison gagnante, ou null si perdu. */
+  hit: string | null;
+  /** Multiplicateur (gain pour 1). */
+  mult: number;
+  /** Jetons rendus (mise comprise). */
+  payout: number;
+}
+
+export const SIDE_NAMES: Record<SideKind, string> = { pairs: 'Perfect Pairs', plus3: '21+3' };
+
+export const PAIRS_TABLE = [
+  { name: 'Paire parfaite', mult: 25, desc: 'Même valeur, même couleur (ex. 8♥ 8♥)', example: '8h 8h' },
+  { name: 'Paire de couleur', mult: 12, desc: 'Même valeur, même teinte rouge ou noire (ex. 8♥ 8♦)', example: '8h 8d' },
+  { name: 'Paire mixte', mult: 6, desc: 'Même valeur, une rouge et une noire (ex. 8♥ 8♠)', example: '8h 8s' },
+] as const;
+
+export const PLUS3_TABLE = [
+  { name: 'Brelan couleur', mult: 100, desc: 'Trois cartes identiques (ex. 7♠ 7♠ 7♠)', example: '7s 7s 7s' },
+  { name: 'Quinte flush', mult: 40, desc: 'Suite de même couleur (ex. 9♥ 10♥ V♥)', example: '9h Th Jh' },
+  { name: 'Brelan', mult: 30, desc: 'Trois cartes de même valeur (ex. 7♠ 7♦ 7♣)', example: '7s 7d 7c' },
+  { name: 'Quinte', mult: 10, desc: 'Trois cartes qui se suivent (ex. 4♣ 5♦ 6♠)', example: '4c 5d 6s' },
+  { name: 'Couleur', mult: 5, desc: 'Trois cartes de la même couleur (ex. 2♦ 9♦ R♦)', example: '2d 9d Kd' },
+] as const;
+
+const isRed = (c: Card) => c.suit === 'h' || c.suit === 'd';
+
+/** Perfect Pairs sur les 2 premières cartes du joueur. */
+export function evalPairs(a: Card, b: Card): { name: string; mult: number } | null {
+  if (a.rank !== b.rank) return null;
+  if (a.suit === b.suit) return PAIRS_TABLE[0];
+  if (isRed(a) === isRed(b)) return PAIRS_TABLE[1];
+  return PAIRS_TABLE[2];
+}
+
+/** 21+3 : les 2 cartes du joueur + la carte visible du croupier. */
+export function evalPlus3(cards: Card[]): { name: string; mult: number } | null {
+  if (cards.length !== 3) return null;
+  const flush = cards.every((c) => c.suit === cards[0].suit);
+  const ranks = cards.map((c) => c.rank).sort((x, y) => x - y);
+  const trips = ranks[0] === ranks[2];
+  const seq = (r: number[]) => r[1] === r[0] + 1 && r[2] === r[1] + 1;
+  const straight = !trips && (seq(ranks) || (ranks[2] === 14 && seq([1, ranks[0], ranks[1]])));
+  if (trips && flush) return PLUS3_TABLE[0];
+  if (straight && flush) return PLUS3_TABLE[1];
+  if (trips) return PLUS3_TABLE[2];
+  if (straight) return PLUS3_TABLE[3];
+  if (flush) return PLUS3_TABLE[4];
+  return null;
+}
+
+function resolveSides(s: BJState): SideResult[] {
+  const out: SideResult[] = [];
+  const [a, b] = s.hands[0].cards;
+  if (s.sideBets.pairs > 0) {
+    const r = evalPairs(a, b);
+    out.push({ kind: 'pairs', bet: s.sideBets.pairs, hit: r?.name ?? null, mult: r?.mult ?? 0, payout: r ? s.sideBets.pairs * (r.mult + 1) : 0 });
+  }
+  if (s.sideBets.plus3 > 0) {
+    const r = evalPlus3([a, b, s.dealer[0]]);
+    out.push({ kind: 'plus3', bet: s.sideBets.plus3, hit: r?.name ?? null, mult: r?.mult ?? 0, payout: r ? s.sideBets.plus3 * (r.mult + 1) : 0 });
+  }
+  return out;
 }
 
 export class BlackjackError extends Error {}
@@ -132,6 +211,8 @@ export function createTable(balance: number, rules: BJRules = DEFAULT_RULES, rng
     lastNet: 0,
     reshuffled: false,
     log: [],
+    sideBets: { pairs: 0, plus3: 0 },
+    sideResults: [],
   };
 }
 
@@ -147,6 +228,8 @@ function draw(s: BJState): Card {
 export interface DealOptions {
   /** Cartes imposées dans l'ordre de tirage (tests et démos). */
   preset?: Card[];
+  /** Paris annexes facultatifs. */
+  side?: Partial<SideBets>;
 }
 
 // ---------------------------------------------------------------- Distribution
@@ -154,7 +237,9 @@ export interface DealOptions {
 export function deal(state: BJState, bet: number, rng: Rng = cryptoRng, opts: DealOptions = {}): BJState {
   if (state.phase !== 'betting' && state.phase !== 'settled') throw new BlackjackError('Un tour est déjà en cours.');
   if (!Number.isInteger(bet) || bet <= 0) throw new BlackjackError('Mise invalide.');
-  if (bet > state.balance) throw new BlackjackError('Solde insuffisant pour cette mise.');
+  const side: SideBets = { pairs: opts.side?.pairs ?? 0, plus3: opts.side?.plus3 ?? 0 };
+  for (const v of Object.values(side)) if (!Number.isInteger(v) || v < 0) throw new BlackjackError('Pari annexe invalide.');
+  if (bet + side.pairs + side.plus3 > state.balance) throw new BlackjackError('Solde insuffisant pour cette mise.');
   const s = clone(state);
   s.reshuffled = false;
   if (s.shoe.length < s.shoeSize * s.rules.reshuffleAt) {
@@ -166,7 +251,8 @@ export function deal(state: BJState, bet: number, rng: Rng = cryptoRng, opts: De
   if (opts.preset) s.shoe.push(...opts.preset.slice().reverse());
 
   s.roundNumber++;
-  s.balance -= bet;
+  s.balance -= bet + side.pairs + side.plus3;
+  s.sideBets = side;
   s.hands = [{ cards: [], bet, status: 'playing', fromSplit: false, splitAces: false }];
   s.dealer = [];
   s.active = 0;
@@ -181,6 +267,10 @@ export function deal(state: BJState, bet: number, rng: Rng = cryptoRng, opts: De
   s.dealer.push(draw(s));
   s.hands[0].cards.push(draw(s));
   s.dealer.push(draw(s));
+
+  // Les paris annexes se règlent dès la distribution (payés à la fin du tour).
+  s.sideResults = resolveSides(s);
+  for (const r of s.sideResults) s.log.push(r.hit ? `${SIDE_NAMES[r.kind]} : ${r.hit}, payé ${r.mult} pour 1 !` : `${SIDE_NAMES[r.kind]} perdu.`);
 
   if (s.dealer[0].rank === 14 && s.balance > 0) {
     s.phase = 'insurance';
@@ -348,6 +438,10 @@ function settle(s: BJState): BJState {
   const d = handTotal(s.dealer).total;
   let returned = 0;
   let staked = 0;
+  for (const r of s.sideResults) {
+    staked += r.bet;
+    returned += r.payout;
+  }
 
   if (s.insurance > 0) {
     staked += s.insurance;

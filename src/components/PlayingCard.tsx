@@ -1,5 +1,6 @@
 import * as deckModule from '@letele/playing-cards';
 import type { ComponentType, SVGProps } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Card } from '../lib/poker/index.ts';
 import { SUIT_SYMBOLS } from '../lib/poker/index.ts';
 
@@ -28,7 +29,13 @@ interface Props {
   animateDeal?: boolean;
   /** Classes appliquées au conteneur extérieur (rotation, décalage…). */
   className?: string;
+  /** id d'un élément d'où part la carte (sabot, centre de la table…). */
+  dealFrom?: string;
+  /** La carte arrive face cachée puis se retourne une fois posée (par défaut : oui si elle est distribuée). */
+  flipOnLand?: boolean;
 }
+
+const FLY_MS = 520;
 
 /**
  * Carte à jouer. En grand : le dessin complet (figures comprises).
@@ -43,8 +50,30 @@ export function PlayingCard({
   dealDelay = 0,
   animateDeal = true,
   className = '',
+  dealFrom,
+  flipOnLand = true,
 }: Props) {
-  const showFace = faceUp && !!card;
+  const fly = useRef<HTMLDivElement>(null);
+  // Point de départ réel de la carte : on mesure l'écart avant le premier affichage.
+  useLayoutEffect(() => {
+    if (!animateDeal || !dealFrom || !fly.current) return;
+    const o = document.getElementById(dealFrom)?.getBoundingClientRect();
+    const me = fly.current.getBoundingClientRect();
+    if (!o || !me.width) return;
+    fly.current.style.setProperty('--from-x', `${o.left + o.width / 2 - (me.left + me.width / 2)}px`);
+    fly.current.style.setProperty('--from-y', `${o.top + o.height / 2 - (me.top + me.height / 2)}px`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [landed, setLanded] = useState(!(animateDeal && flipOnLand));
+  useEffect(() => {
+    if (landed) return;
+    const t = setTimeout(() => setLanded(true), dealDelay + FLY_MS - 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const showFace = faceUp && !!card && landed;
+  const everHidden = useRef(false);
+  if (!showFace) everHidden.current = true;
   const Svg = card ? DECK[cardKey(card)] : null;
   // Petites cartes : on recadre sur l'index du coin pour rester lisible
   const compact = px(size) < 14;
@@ -57,7 +86,7 @@ export function PlayingCard({
       aria-label={showFace ? label : 'Carte cachée'}
       role="img"
     >
-      <div className={`h-full w-full ${animateDeal ? 'deal-in' : ''}`} style={{ animationDelay: `${dealDelay}ms` }}>
+      <div ref={fly} className={`h-full w-full ${animateDeal ? 'deal-in' : ''}`} style={{ animationDelay: `${dealDelay}ms` }}>
         <div
           className="h-full w-full"
           style={{
@@ -67,7 +96,7 @@ export function PlayingCard({
             filter: dim ? 'brightness(.42) saturate(.5)' : undefined,
           }}
         >
-          <div className={`card-inner ${showFace ? '' : 'flipped'}`}>
+          <div className={`card-inner ${showFace ? (everHidden.current ? 'lift' : '') : 'flipped'}`}>
             <div
               className="card-face card-front"
               style={

@@ -199,7 +199,8 @@ export function Table({ view, heroId, meta, timer, revealAll = false }: Props) {
               </div>
             </div>
           )}
-          <div className="flex" style={{ gap: S.board * 0.28 }}>
+          <div className="relative flex" style={{ gap: S.board * 0.28 }}>
+            <span id="deal-origin" className="pointer-events-none absolute left-1/2 top-0 h-px w-px" aria-hidden />
             {Array.from({ length: 5 }, (_, i) => {
               const c = view.board[i];
               return c ? (
@@ -207,7 +208,7 @@ export function Table({ view, heroId, meta, timer, revealAll = false }: Props) {
                   key={`${view.handNumber}-${i}`}
                   card={c}
                   size={S.board}
-                  dealDelay={i < 3 ? i * 110 : 0}
+                  dealDelay={i < 3 ? i * 160 : 0}
                   highlight={isWinning(c)}
                   dim={!!showdown && winningCards.length > 0 && !isWinning(c)}
                 />
@@ -256,6 +257,8 @@ export function Table({ view, heroId, meta, timer, revealAll = false }: Props) {
                 </div>
               )}
               <Seat
+                dealOrder={(i - view.buttonIndex - 1 + view.players.length) % view.players.length}
+                seats={view.players.length}
                 player={p}
                 pos={pos}
                 S={S}
@@ -334,6 +337,9 @@ function ResultBanner({ view, S }: { view: GameState; S: Scale }) {
 }
 
 interface SeatProps {
+  /** Rang de distribution (0 = à gauche du bouton) et nombre de sièges. */
+  dealOrder: number;
+  seats: number;
   player: PlayerState;
   pos: Pos;
   S: Scale;
@@ -398,7 +404,8 @@ function Seat(props: SeatProps) {
               card={c}
               faceUp={faceUp}
               size={cardPx}
-              dealDelay={k * 140}
+              dealDelay={(k * props.seats + props.dealOrder) * 95}
+              dealFrom="deal-origin"
               highlight={isWin(c)}
               className={isHero ? (k === 0 ? '-rotate-3' : 'rotate-3') : k === 0 ? '-rotate-[8deg]' : 'rotate-[8deg] -ml-[1em]'}
             />
