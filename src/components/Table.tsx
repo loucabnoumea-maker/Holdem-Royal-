@@ -33,6 +33,8 @@ interface Props {
   heroId: string | null;
   meta: Record<string, SeatMeta>;
   timer?: TurnTimer | null;
+  /** Démonstration : toutes les cartes privées sont visibles. */
+  revealAll?: boolean;
 }
 
 function useSize<T extends HTMLElement>() {
@@ -114,7 +116,7 @@ function computeScale(w: number, h: number, portrait: boolean): Scale {
   };
 }
 
-export function Table({ view, heroId, meta, timer }: Props) {
+export function Table({ view, heroId, meta, timer, revealAll = false }: Props) {
   const [ref, area] = useSize<HTMLDivElement>();
   const portrait = area.w / Math.max(1, area.h) < 1.05;
   // La table remplit toute la zone disponible (proportions bornées)
@@ -270,6 +272,7 @@ export function Table({ view, heroId, meta, timer }: Props) {
                 timer={timer && timer.playerId === p.id && view.phase === 'betting' ? timer : null}
                 phase={view.phase}
                 lastAction={actions[p.id]}
+                revealAll={revealAll}
               />
             </div>
           );
@@ -347,6 +350,7 @@ interface SeatProps {
   timer: TurnTimer | null;
   phase: GameState['phase'];
   lastAction?: LogEntry;
+  revealAll: boolean;
 }
 
 function Seat(props: SeatProps) {
@@ -355,8 +359,8 @@ function Seat(props: SeatProps) {
   const folded = p.status === 'folded';
   const hasCards = p.holeCards.length > 0 || (inHand(p) && props.handNumber > 0);
   const cards: (Card | null)[] = shownCards ?? (p.holeCards.length ? p.holeCards : [null, null]);
-  const faceUp = !!shownCards || (isHero && p.holeCards.length > 0);
-  const cardPx = isHero ? S.hero : shownCards ? S.oppShown : S.opp;
+  const faceUp = !!shownCards || ((isHero || props.revealAll) && p.holeCards.length > 0);
+  const cardPx = isHero ? S.hero : shownCards || (props.revealAll && p.holeCards.length) ? S.oppShown : S.opp;
   const isWin = (c: Card | null) => !!c && props.winningCards.some((w) => sameCard(w, c));
   const avatar = isHero ? S.heroAvatar : S.avatar;
   const showCards = hasCards && !out && !(folded && !isHero) && props.phase !== 'waiting';

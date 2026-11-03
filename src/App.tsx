@@ -10,6 +10,8 @@ import { SoloSetup } from './pages/SoloSetup.tsx';
 // Le mode en ligne (et le client Supabase) n'est chargé que si on en a besoin.
 const OnlineEntry = lazy(() => import('./pages/OnlineEntry.tsx'));
 const OnlineRoom = lazy(() => import('./pages/OnlineRoom.tsx'));
+const BlackjackGame = lazy(() => import('./pages/BlackjackGame.tsx'));
+const Rules = lazy(() => import('./pages/Rules.tsx'));
 
 export default function App() {
   const route = useHashRoute();
@@ -35,6 +37,10 @@ export default function App() {
     page = <OnlineEntry mode={b} />;
   } else if (a === 'join' && b) {
     page = <OnlineEntry mode="join" initialCode={b} />;
+  } else if (a === 'blackjack') {
+    page = <BlackjackGame />;
+  } else if (a === 'regles') {
+    page = <Rules game={b === 'blackjack' ? 'blackjack' : 'poker'} />;
   } else if (a === 'room' && b) {
     page = <OnlineRoom code={b.toUpperCase()} />;
   } else {

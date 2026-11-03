@@ -33,7 +33,7 @@ export function Home() {
         Hold'em Royal
       </h1>
       <p className="fade-up font-ui mt-4 text-center text-lg text-ivory/60" style={{ animationDelay: '120ms' }}>
-        Texas Hold'em No Limit, contre des bots ou entre amis.
+        Poker Texas Hold'em et Blackjack, contre des bots ou entre amis.
       </p>
 
       <nav className="fade-up mt-10 flex w-full flex-col gap-3" style={{ animationDelay: '220ms' }}>
@@ -50,7 +50,17 @@ export function Home() {
             Disponibles sur la version déployée avec Supabase (guide SUPABASE.md du projet).
           </div>
         )}
+        <MenuButton suit="♣" title="Blackjack" text="Bats le croupier, avec conseils de stratégie" onClick={() => navigate('/blackjack')} />
       </nav>
+
+      <div className="fade-up font-ui mt-6 flex w-full gap-3" style={{ animationDelay: '300ms' }}>
+        <button onClick={() => navigate('/regles/poker')} className="flex-1 rounded-2xl bg-white/[0.06] px-4 py-3 text-[15px] font-semibold text-ivory/85 ring-1 ring-white/15 hover:bg-white/10">
+          📖 Règles du Hold'em
+        </button>
+        <button onClick={() => navigate('/regles/blackjack')} className="flex-1 rounded-2xl bg-white/[0.06] px-4 py-3 text-[15px] font-semibold text-ivory/85 ring-1 ring-white/15 hover:bg-white/10">
+          📖 Règles du Blackjack
+        </button>
+      </div>
 
       <p className="font-ui mt-10 text-center text-sm text-ivory/35">Jetons fictifs uniquement. Aucun argent réel, aucun achat.</p>
     </div>
